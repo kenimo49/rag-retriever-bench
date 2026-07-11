@@ -32,7 +32,8 @@ def fake_hub(tmp_path, monkeypatch):
     calls = []
 
     def fake_download(repo, filename, repo_type):
-        calls.append(filename)
+        assert repo_type == "dataset"
+        calls.append(f"{repo}/{filename}")
         if "topics" in filename:
             return str(topics)
         if "qrels" in filename:
