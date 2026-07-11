@@ -39,6 +39,8 @@ class ClickHouseRetriever(BaseRetriever):
             username=options.get("username", "bench"),
             password=options.get("password", "bench"),
             database=options.get("database", "bench"),
+            # OPTIMIZE FINAL (index build) can exceed the 300s default.
+            send_receive_timeout=1200,
         )
         # Distinct table per backend config, so two ClickHouse variants in one
         # run don't clobber each other and post-run inspection stays possible.
@@ -77,6 +79,10 @@ class ClickHouseRetriever(BaseRetriever):
                 self.table,
                 list(zip(docids[i : i + chunk], texts[i : i + chunk], emb_list[i : i + chunk])),
                 column_names=["docid", "body", "embedding"],
+                # Defer HNSW construction to OPTIMIZE FINAL (build_index) so
+                # load measures ingestion only and inserts can't stall past the
+                # server's 30s http_receive_timeout (seen at index_granularity=128).
+                settings={"materialize_skip_indexes_on_insert": 0},
             )
         return time.perf_counter() - t0
 
