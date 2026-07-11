@@ -65,15 +65,24 @@ class LanceDBRetriever(BaseRetriever):
         return time.perf_counter() - t0
 
     def build_index(self) -> float:
+        # Unified config API (the metric=/index_type= kwargs are deprecated
+        # since lancedb 0.34 and slated for removal).
+        from lancedb.index import IvfHnswSq, IvfPq
+
+        if self.index_type == "IVF_HNSW_SQ":
+            config = IvfHnswSq(
+                distance_type="cosine",
+                num_partitions=self.num_partitions,
+                m=self.m,
+                ef_construction=self.ef_construction,
+            )
+        elif self.index_type == "IVF_PQ":
+            config = IvfPq(distance_type="cosine", num_partitions=self.num_partitions)
+        else:
+            raise ValueError(f"unsupported lancedb index type: {self.index_type}")
         t0 = time.perf_counter()
-        self.table.create_index(
-            metric="cosine",
-            vector_column_name="vector",
-            index_type=self.index_type,
-            num_partitions=self.num_partitions,
-            m=self.m,
-            ef_construction=self.ef_construction,
-        )
+        # In the unified API the first argument is the column path.
+        self.table.create_index("vector", config=config)
         return time.perf_counter() - t0
 
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[str]:

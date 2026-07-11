@@ -63,6 +63,20 @@ Default config uses [MIRACL](https://huggingface.co/datasets/miracl/miracl) (ja)
 - recall@k is the standard uncapped definition (hits / |positives|); duplicate docids returned by a backend are deduplicated before scoring.
 - `corpus_size` is a CLI flag so you can sweep scale (10k → 100k → …) and find where the trade-offs actually flip, on your own hardware.
 
+## Testing
+
+```bash
+pip install -e ".[dev,all]"
+pytest                        # unit + e2e tests, no services needed
+docker compose up -d --wait   # start all 5 server backends
+pytest -m integration         # live contract tests against every backend
+```
+
+Integration tests skip per-backend when a service isn't reachable, use an
+`rrb_it_*` table/collection namespace (your bench data is never touched), and
+verify results against a numpy brute-force ground truth. If the services run
+on another machine, point the tests at it with `RRB_IT_HOST=<host>`.
+
 ## Roadmap
 
 - v0.2: metadata-filtered search, hybrid (vector + full-text) mode, more backends
