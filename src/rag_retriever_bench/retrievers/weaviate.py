@@ -70,9 +70,15 @@ class WeaviateRetriever(BaseRetriever):
         while time.perf_counter() < deadline:
             try:
                 shards = self.collection.config.get_shards()
-                if all(getattr(s, "vector_queue_size", 0) == 0 for s in shards):
-                    break
-            except Exception:
+            except Exception as exc:
+                # Don't swallow this into a fake 0s build time: without the
+                # queue metric we can't prove indexing finished, so say so.
+                print(
+                    f"NOTE [{self.label}]: shard queue metric unavailable ({exc}); "
+                    "assuming synchronous indexing (Weaviate default, ASYNC_INDEXING off)"
+                )
+                break
+            if all(getattr(s, "vector_queue_size", 0) == 0 for s in shards):
                 break
             time.sleep(0.5)
         return time.perf_counter() - t0

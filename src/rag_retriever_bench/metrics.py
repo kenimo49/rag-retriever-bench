@@ -8,9 +8,26 @@ from __future__ import annotations
 import math
 
 
+def dedupe(retrieved: list[str]) -> list[str]:
+    """Drop duplicate docids, keeping the best (first) rank.
+
+    A backend returning the same docid twice must not inflate recall/nDCG.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for d in retrieved:
+        if d not in seen:
+            seen.add(d)
+            out.append(d)
+    return out
+
+
 def recall_at_k(retrieved: list[str], positives: set[str], k: int) -> float:
+    # Standard (uncapped) recall@k: hits / |positives|. MIRACL-ja dev has a
+    # single query with >10 positives, so this matches capped recall to ~1e-4
+    # but agrees with the textbook definition used by BEIR/pytrec_eval.
     hits = sum(1 for d in retrieved[:k] if d in positives)
-    return hits / min(len(positives), k) if positives else 0.0
+    return hits / len(positives) if positives else 0.0
 
 
 def hit_at_k(retrieved: list[str], positives: set[str], k: int) -> float:

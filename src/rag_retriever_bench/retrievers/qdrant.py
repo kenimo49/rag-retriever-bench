@@ -119,14 +119,12 @@ class QdrantRetriever(BaseRetriever):
 
     def describe(self) -> dict[str, Any]:
         try:
-            from importlib.metadata import version
-
-            client_ver = version("qdrant-client")
+            server_ver = self.client.info().version
         except Exception:
-            client_ver = "?"
+            server_ver = "?"
         return {
             **super().describe(),
-            "server": f"Qdrant (client {client_ver})",
+            "server": f"Qdrant {server_ver}",
             "index": f"hnsw(m={self.m}, ef_construction={self.ef_construction}, ef_search={self.ef_search})",
             "distance": "cosine",
         }

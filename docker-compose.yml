@@ -42,7 +42,7 @@ services:
       retries: 20
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.18.2
     container_name: rrb-qdrant
     ports:
       - "6333:6333"
@@ -56,7 +56,7 @@ services:
       retries: 20
 
   weaviate:
-    image: semitechnologies/weaviate:latest
+    image: semitechnologies/weaviate:1.38.3
     container_name: rrb-weaviate
     ports:
       # host 8080/50051 can be shadowed by other services (seen on WSL);

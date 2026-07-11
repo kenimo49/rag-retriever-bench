@@ -16,19 +16,31 @@ All metrics are deterministic. No LLM-as-judge anywhere, so runs are cheap and r
 
 ## Backends (v0.1)
 
-- **pgvector** (PostgreSQL, HNSW)
-- **ClickHouse** (`vector_similarity` HNSW index, and brute-force full scan mode)
+| Backend | Type | Index |
+|---|---|---|
+| **pgvector** (PostgreSQL) | server | HNSW |
+| **ClickHouse** | server | `vector_similarity` HNSW (two `index_granularity` variants) + brute-force full scan |
+| **Qdrant** | server | HNSW (gRPC loading) |
+| **Weaviate** | server | HNSW |
+| **Milvus** (standalone) | server | HNSW |
+| **Chroma** | embedded | HNSW |
+| **LanceDB** | embedded | IVF_HNSW_SQ (8-bit scalar quantization — not flat HNSW) |
 
 Backends implement a small interface (`retrievers/base.py`); adding one is a single file.
+Server backends need `pip install -e ".[all]"` (or the per-backend extra) and `docker compose up`.
+
+Every run records a `self_check` per backend — an EXPLAIN or server-statistics probe that
+verifies the ANN index was actually used. Three of the backends above shipped a way to
+silently degrade to full scan with zero errors; the harness caught all three.
 
 ## Quick start
 
 ```bash
 git clone https://github.com/kenimo49/rag-retriever-bench
 cd rag-retriever-bench
-pip install -e .
+pip install -e ".[all]"       # or just `pip install -e .` for pgvector/ClickHouse only
 
-docker compose up -d          # pgvector + ClickHouse
+docker compose up -d          # pgvector, ClickHouse, Qdrant, Weaviate, Milvus (Chroma/LanceDB are embedded)
 cp .env.example .env          # set OPENAI_API_KEY (used for embeddings)
 
 # 10k-passage smoke run (MIRACL-ja downloads on first use)
@@ -47,12 +59,13 @@ Default config uses [MIRACL](https://huggingface.co/datasets/miracl/miracl) (ja)
 ## Design notes
 
 - The harness never assumes a winner. Index parameters (HNSW m / ef) are aligned across backends so differences reflect the engine, not the tuning.
-- Latency is measured client-side per query, including serialization — the same overhead for every backend.
+- Latency is measured client-side per query, including serialization. Server backends all pay the same localhost network hop; embedded backends (Chroma, LanceDB) run in-process and are reported in a separate table — do not compare the two classes directly.
+- recall@k is the standard uncapped definition (hits / |positives|); duplicate docids returned by a backend are deduplicated before scoring.
 - `corpus_size` is a CLI flag so you can sweep scale (10k → 100k → …) and find where the trade-offs actually flip, on your own hardware.
 
 ## Roadmap
 
-- v0.2: more backends (Qdrant, Weaviate, Milvus, Chroma, LanceDB), metadata-filtered search, hybrid (vector + full-text) mode
+- v0.2: metadata-filtered search, hybrid (vector + full-text) mode, more backends
 - Synthetic QA generation for bring-your-own-corpus evaluation
 
 ## License

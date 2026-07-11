@@ -58,8 +58,12 @@ def _run_backend(
         index_s = retriever.build_index()
         print(f"index build: {index_s:.1f}s")
 
-        for vec in query_vecs[: cfg.bench.warmup_queries]:
-            retriever.search(vec, k)
+        # Warm up with synthetic unit vectors, not evaluation queries — an
+        # exact-query cache must not make the first N measured queries free.
+        rng = np.random.default_rng(42)
+        for _ in range(cfg.bench.warmup_queries):
+            vec = rng.standard_normal(query_vecs.shape[1]).astype(np.float32)
+            retriever.search(vec / np.linalg.norm(vec), k)
 
         self_check = retriever.self_check(query_vecs[0])
         if self_check:
@@ -71,6 +75,7 @@ def _run_backend(
             t0 = time.perf_counter()
             retrieved = retriever.search(vec, k)
             latencies_ms.append((time.perf_counter() - t0) * 1000)
+            retrieved = metrics.dedupe(retrieved)
             positives = set(query["positives"])
             per_query.append(
                 {
