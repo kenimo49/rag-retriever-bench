@@ -47,13 +47,14 @@ backends:
     label: Qdrant (HNSW)
     host: localhost
     port: 6333
+    grpc_port: 6334
     hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
 
   - type: weaviate
     label: Weaviate (HNSW)
     host: localhost
-    port: 8080
-    grpc_port: 50051
+    port: 8087
+    grpc_port: 50052
     hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
 
   - type: milvus

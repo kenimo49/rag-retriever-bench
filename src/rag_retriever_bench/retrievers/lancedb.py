@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -7,6 +8,10 @@ from typing import Any
 import numpy as np
 
 from .base import BaseRetriever
+
+# Must be set before the lance native library loads, or every search prints a
+# scanner deprecation warning about the auto-included _distance column.
+os.environ.setdefault("LANCE_LOG", "error")
 
 TABLE = "rrb_docs"
 

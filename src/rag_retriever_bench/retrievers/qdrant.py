@@ -31,6 +31,10 @@ class QdrantRetriever(BaseRetriever):
         self.client = QdrantClient(
             host=options.get("host", "localhost"),
             port=int(options.get("port", 6333)),
+            grpc_port=int(options.get("grpc_port", 6334)),
+            # REST rejects JSON bodies >32MB; gRPC has no such ceiling and is
+            # what production loaders use anyway.
+            prefer_grpc=True,
             timeout=600,
         )
         self._docids: list[str] = []
@@ -104,9 +108,9 @@ class QdrantRetriever(BaseRetriever):
 
     def describe(self) -> dict[str, Any]:
         try:
-            import qdrant_client
+            from importlib.metadata import version
 
-            client_ver = qdrant_client.__version__
+            client_ver = version("qdrant-client")
         except Exception:
             client_ver = "?"
         return {

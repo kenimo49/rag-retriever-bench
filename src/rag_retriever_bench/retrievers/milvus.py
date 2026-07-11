@@ -33,8 +33,17 @@ class MilvusRetriever(BaseRetriever):
         self._docids: list[str] = []
 
     def setup(self, dim: int) -> None:
+        from pymilvus import DataType
+
         if self.client.has_collection(COLLECTION):
             self.client.drop_collection(COLLECTION)
+        # Explicit schema: the quick-setup path (dimension=...) silently
+        # replaces custom index_params with AUTOINDEX — self_check caught
+        # exactly that on the first smoke run.
+        schema = self.client.create_schema(auto_id=False, enable_dynamic_field=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("vector", DataType.FLOAT_VECTOR, dim=dim)
+        schema.add_field("docid", DataType.VARCHAR, max_length=128)
         index_params = self.client.prepare_index_params()
         index_params.add_index(
             field_name="vector",
@@ -42,16 +51,7 @@ class MilvusRetriever(BaseRetriever):
             metric_type="COSINE",
             params={"M": self.m, "efConstruction": self.ef_construction},
         )
-        self.client.create_collection(
-            COLLECTION,
-            dimension=dim,
-            primary_field_name="id",
-            vector_field_name="vector",
-            metric_type="COSINE",
-            auto_id=False,
-            enable_dynamic_field=True,
-            index_params=index_params,
-        )
+        self.client.create_collection(COLLECTION, schema=schema, index_params=index_params)
 
     def load(self, docids: list[str], texts: list[str], embeddings: np.ndarray) -> float:
         self._docids = list(docids)

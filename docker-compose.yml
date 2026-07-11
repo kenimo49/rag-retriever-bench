@@ -59,8 +59,10 @@ services:
     image: semitechnologies/weaviate:latest
     container_name: rrb-weaviate
     ports:
-      - "8080:8080"
-      - "50051:50051"
+      # host 8080/50051 can be shadowed by other services (seen on WSL);
+      # publish on offset ports and point the config at 8087/50052.
+      - "8087:8080"
+      - "50052:50051"
     environment:
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
       PERSISTENCE_DATA_PATH: /var/lib/weaviate
