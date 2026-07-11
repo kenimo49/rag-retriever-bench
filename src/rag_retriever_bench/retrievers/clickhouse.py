@@ -61,7 +61,8 @@ class ClickHouseRetriever(BaseRetriever):
             self.client.command("SET allow_experimental_vector_similarity_index = 1")
             index_clause = (
                 f", INDEX vec_idx embedding TYPE vector_similarity("
-                f"'hnsw', 'cosineDistance', {dim}, 'bf16', {self.m}, {self.ef_construction}) GRANULARITY 100000000"
+                f"'hnsw', 'cosineDistance', {dim}, 'bf16', {self.m}, {self.ef_construction})"
+                f" GRANULARITY 100000000"
             )
         self.client.command(
             f"CREATE TABLE {self.table} (docid String, body String, embedding Array(Float32)"
@@ -77,7 +78,14 @@ class ClickHouseRetriever(BaseRetriever):
         for i in range(0, len(docids), chunk):
             self.client.insert(
                 self.table,
-                list(zip(docids[i : i + chunk], texts[i : i + chunk], emb_list[i : i + chunk])),
+                list(
+                    zip(
+                        docids[i : i + chunk],
+                        texts[i : i + chunk],
+                        emb_list[i : i + chunk],
+                        strict=True,
+                    )
+                ),
                 column_names=["docid", "body", "embedding"],
                 # Defer HNSW construction to OPTIMIZE FINAL (build_index) so
                 # load measures ingestion only and inserts can't stall past the
@@ -118,7 +126,9 @@ class ClickHouseRetriever(BaseRetriever):
             print(f"WARNING [{self.label}]: vector_similarity index NOT used in query plan")
         return {
             "ann_index_used": uses_index,
-            "plan_excerpt": [l.strip() for l in plan if "Skip" in l or "vec_idx" in l or "Granules" in l],
+            "plan_excerpt": [
+                line.strip() for line in plan if "Skip" in line or "vec_idx" in line or "Granules" in line
+            ],
         }
 
     def describe(self) -> dict[str, Any]:

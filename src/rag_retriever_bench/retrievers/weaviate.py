@@ -56,7 +56,7 @@ class WeaviateRetriever(BaseRetriever):
         t0 = time.perf_counter()
         emb_list = embeddings.tolist()
         with self.collection.batch.dynamic() as batch:
-            for docid, vec in zip(docids, emb_list):
+            for docid, vec in zip(docids, emb_list, strict=True):
                 batch.add_object(properties={"docid": docid}, vector=vec)
         failed = self.collection.batch.failed_objects
         if failed:
@@ -112,7 +112,9 @@ class WeaviateRetriever(BaseRetriever):
         return {
             **super().describe(),
             "server": f"Weaviate {meta.get('version', '?')}",
-            "index": f"hnsw(max_connections={self.m}, ef_construction={self.ef_construction}, ef={self.ef_search})",
+            "index": (
+                f"hnsw(max_connections={self.m}, ef_construction={self.ef_construction}, ef={self.ef_search})"
+            ),
             "distance": "cosine",
         }
 

@@ -36,7 +36,7 @@ class PgvectorRetriever(BaseRetriever):
         t0 = time.perf_counter()
         with self.conn.cursor() as cur:
             with cur.copy(f"COPY {TABLE} (docid, body, embedding) FROM STDIN") as copy:
-                for docid, text, vec in zip(docids, texts, embeddings):
+                for docid, text, vec in zip(docids, texts, embeddings, strict=True):
                     copy.write_row((docid, text, _vec_literal(vec)))
         return time.perf_counter() - t0
 
@@ -74,7 +74,7 @@ class PgvectorRetriever(BaseRetriever):
         uses_index = any("Index Scan using" in line and TABLE in line for line in plan)
         if not uses_index:
             print(f"WARNING [{self.label}]: HNSW index NOT used in query plan")
-        return {"ann_index_used": uses_index, "plan_excerpt": [l.strip()[:160] for l in plan[:2]]}
+        return {"ann_index_used": uses_index, "plan_excerpt": [line.strip()[:160] for line in plan[:2]]}
 
     def describe(self) -> dict[str, Any]:
         with self.conn.cursor() as cur:

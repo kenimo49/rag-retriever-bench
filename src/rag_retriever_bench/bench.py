@@ -71,7 +71,7 @@ def _run_backend(
 
         latencies_ms: list[float] = []
         per_query: list[dict[str, float]] = []
-        for query, vec in zip(tqdm(queries, desc=f"search {label}"), query_vecs):
+        for query, vec in zip(tqdm(queries, desc=f"search {label}"), query_vecs, strict=True):
             t0 = time.perf_counter()
             retrieved = retriever.search(vec, k)
             latencies_ms.append((time.perf_counter() - t0) * 1000)

@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
