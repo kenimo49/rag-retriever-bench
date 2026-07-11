@@ -6,5 +6,6 @@ dist/
 .venv/
 .env
 data/
-results/
+results/*
 !results/.gitkeep
+!results/published/
