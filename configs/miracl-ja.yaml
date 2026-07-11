@@ -31,6 +31,14 @@ backends:
     hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
 
   - type: clickhouse
+    label: ClickHouse (HNSW, g=128)
+    host: localhost
+    port: 8123
+    index: hnsw
+    index_granularity: 128
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: clickhouse
     label: ClickHouse (brute force)
     host: localhost
     port: 8123
