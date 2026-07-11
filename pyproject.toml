@@ -56,7 +56,10 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# Integration tests need live backends (docker compose up -d); run them with
+# `pytest -m integration` — the CLI -m overrides this default exclusion.
+addopts = "-q -m 'not integration'"
+markers = ["integration: needs live backend services (docker compose)"]
 
 [tool.ruff]
 line-length = 110

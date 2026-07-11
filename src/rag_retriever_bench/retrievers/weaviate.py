@@ -7,9 +7,6 @@ import numpy as np
 
 from .base import BaseRetriever
 
-# Weaviate collection names must start with an uppercase letter.
-COLLECTION = "RrbDocs"
-
 
 class WeaviateRetriever(BaseRetriever):
     """Weaviate backend (HNSW, vectorizer disabled — we bring our own vectors).
@@ -33,15 +30,17 @@ class WeaviateRetriever(BaseRetriever):
             port=int(options.get("port", 8080)),
             grpc_port=int(options.get("grpc_port", 50051)),
         )
+        # Weaviate collection names must start with an uppercase letter.
+        self.collection_name = options.get("collection", "RrbDocs")
         self.collection = None
 
     def setup(self, dim: int) -> None:
         from weaviate.classes.config import Configure, DataType, Property, VectorDistances
 
-        if self.client.collections.exists(COLLECTION):
-            self.client.collections.delete(COLLECTION)
+        if self.client.collections.exists(self.collection_name):
+            self.client.collections.delete(self.collection_name)
         self.collection = self.client.collections.create(
-            name=COLLECTION,
+            name=self.collection_name,
             properties=[Property(name="docid", data_type=DataType.TEXT)],
             vectorizer_config=Configure.Vectorizer.none(),
             vector_index_config=Configure.VectorIndex.hnsw(

@@ -7,8 +7,6 @@ import numpy as np
 
 from .base import BaseRetriever
 
-COLLECTION = "rrb_docs"
-
 
 class QdrantRetriever(BaseRetriever):
     """Qdrant backend (HNSW is the only index type, always on).
@@ -37,15 +35,16 @@ class QdrantRetriever(BaseRetriever):
             prefer_grpc=True,
             timeout=600,
         )
+        self.collection_name = options.get("collection", "rrb_docs")
         self._docids: list[str] = []
 
     def setup(self, dim: int) -> None:
         from qdrant_client import models
 
-        if self.client.collection_exists(COLLECTION):
-            self.client.delete_collection(COLLECTION)
+        if self.client.collection_exists(self.collection_name):
+            self.client.delete_collection(self.collection_name)
         self.client.create_collection(
-            COLLECTION,
+            self.collection_name,
             vectors_config=models.VectorParams(size=dim, distance=models.Distance.COSINE),
             hnsw_config=models.HnswConfigDiff(m=self.m, ef_construct=self.ef_construction),
         )
@@ -59,7 +58,7 @@ class QdrantRetriever(BaseRetriever):
         emb_list = embeddings.tolist()
         for i in range(0, len(docids), chunk):
             self.client.upsert(
-                COLLECTION,
+                self.collection_name,
                 points=models.Batch(
                     ids=list(range(i, min(i + chunk, len(docids)))),
                     vectors=emb_list[i : i + chunk],
@@ -78,12 +77,12 @@ class QdrantRetriever(BaseRetriever):
         # index construction, then wait for every vector to be covered.
         t0 = time.perf_counter()
         self.client.update_collection(
-            COLLECTION,
+            self.collection_name,
             optimizer_config=models.OptimizersConfigDiff(indexing_threshold=1),
         )
         deadline = t0 + 1800
         while time.perf_counter() < deadline:
-            info = self.client.get_collection(COLLECTION)
+            info = self.client.get_collection(self.collection_name)
             indexed = int(info.indexed_vectors_count or 0)
             total = int(info.points_count or 0)
             if indexed >= total and str(info.status) in ("CollectionStatus.GREEN", "green"):
@@ -95,7 +94,7 @@ class QdrantRetriever(BaseRetriever):
         from qdrant_client import models
 
         res = self.client.query_points(
-            COLLECTION,
+            self.collection_name,
             query=query_embedding.tolist(),
             limit=top_k,
             search_params=models.SearchParams(hnsw_ef=self.ef_search),
@@ -104,7 +103,7 @@ class QdrantRetriever(BaseRetriever):
         return [p.payload["docid"] for p in res.points]
 
     def self_check(self, query_embedding: np.ndarray) -> dict[str, Any]:
-        info = self.client.get_collection(COLLECTION)
+        info = self.client.get_collection(self.collection_name)
         indexed = int(info.indexed_vectors_count or 0)
         total = int(info.points_count or 0)
         uses_index = indexed > 0

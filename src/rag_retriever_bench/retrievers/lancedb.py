@@ -13,9 +13,6 @@ from .base import BaseRetriever
 # scanner deprecation warning about the auto-included _distance column.
 os.environ.setdefault("LANCE_LOG", "error")
 
-TABLE = "rrb_docs"
-
-
 class LanceDBRetriever(BaseRetriever):
     """LanceDB backend, embedded (serverless, file-backed) mode.
 
@@ -40,13 +37,14 @@ class LanceDBRetriever(BaseRetriever):
         self.path = Path(options.get("path", "data/embedded/lancedb"))
         self.path.mkdir(parents=True, exist_ok=True)
         self.db = lancedb.connect(str(self.path))
+        self.table_name = options.get("table", "rrb_docs")
         self.table = None
         self._dim = 0
 
     def setup(self, dim: int) -> None:
         self._dim = dim
         try:
-            self.db.drop_table(TABLE)
+            self.db.drop_table(self.table_name)
         except Exception:
             pass
 
@@ -63,7 +61,7 @@ class LanceDBRetriever(BaseRetriever):
                 ),
             }
         )
-        self.table = self.db.create_table(TABLE, data=arr)
+        self.table = self.db.create_table(self.table_name, data=arr)
         return time.perf_counter() - t0
 
     def build_index(self) -> float:

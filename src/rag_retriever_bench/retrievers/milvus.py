@@ -7,8 +7,6 @@ import numpy as np
 
 from .base import BaseRetriever
 
-COLLECTION = "rrb_docs"
-
 
 class MilvusRetriever(BaseRetriever):
     """Milvus backend via MilvusClient.
@@ -30,13 +28,14 @@ class MilvusRetriever(BaseRetriever):
         self.ef_search = int(hnsw.get("ef_search", 100))
         self.uri = options.get("uri", "http://localhost:19530")
         self.client = MilvusClient(uri=self.uri)
+        self.collection_name = options.get("collection", "rrb_docs")
         self._docids: list[str] = []
 
     def setup(self, dim: int) -> None:
         from pymilvus import DataType
 
-        if self.client.has_collection(COLLECTION):
-            self.client.drop_collection(COLLECTION)
+        if self.client.has_collection(self.collection_name):
+            self.client.drop_collection(self.collection_name)
         # Explicit schema: the quick-setup path (dimension=...) silently
         # replaces custom index_params with AUTOINDEX — self_check caught
         # exactly that on the first smoke run.
@@ -51,7 +50,7 @@ class MilvusRetriever(BaseRetriever):
             metric_type="COSINE",
             params={"M": self.m, "efConstruction": self.ef_construction},
         )
-        self.client.create_collection(COLLECTION, schema=schema, index_params=index_params)
+        self.client.create_collection(self.collection_name, schema=schema, index_params=index_params)
 
     def load(self, docids: list[str], texts: list[str], embeddings: np.ndarray) -> float:
         self._docids = list(docids)
@@ -63,17 +62,17 @@ class MilvusRetriever(BaseRetriever):
                 {"id": j, "vector": emb_list[j], "docid": docids[j]}
                 for j in range(i, min(i + chunk, len(docids)))
             ]
-            self.client.insert(COLLECTION, data=rows)
+            self.client.insert(self.collection_name, data=rows)
         return time.perf_counter() - t0
 
     def build_index(self) -> float:
         t0 = time.perf_counter()
-        self.client.flush(COLLECTION)
+        self.client.flush(self.collection_name)
         # Wait until every row is covered by the HNSW index.
         deadline = t0 + 1800
         while time.perf_counter() < deadline:
             try:
-                desc = self.client.describe_index(COLLECTION, index_name="vector")
+                desc = self.client.describe_index(self.collection_name, index_name="vector")
                 pending = int(desc.get("pending_index_rows", 0))
                 total = int(desc.get("total_rows", 0))
                 indexed = int(desc.get("indexed_rows", 0))
@@ -87,10 +86,10 @@ class MilvusRetriever(BaseRetriever):
         # pulling them in (measured recall@10 0.922 / 0.958 vs 0.979 on the
         # same index). A full release + load is the only reliably synchronous
         # path to an all-segments-visible state.
-        self.client.release_collection(COLLECTION)
-        self.client.load_collection(COLLECTION)
+        self.client.release_collection(self.collection_name)
+        self.client.load_collection(self.collection_name)
         while time.perf_counter() < deadline:
-            state = str(self.client.get_load_state(COLLECTION).get("state", ""))
+            state = str(self.client.get_load_state(self.collection_name).get("state", ""))
             if "Loaded" in state:
                 break
             time.sleep(0.5)
@@ -98,7 +97,7 @@ class MilvusRetriever(BaseRetriever):
 
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[str]:
         res = self.client.search(
-            COLLECTION,
+            self.collection_name,
             data=[query_embedding.tolist()],
             limit=top_k,
             search_params={"metric_type": "COSINE", "params": {"ef": self.ef_search}},
@@ -107,7 +106,7 @@ class MilvusRetriever(BaseRetriever):
         return [hit["entity"]["docid"] for hit in res[0]]
 
     def self_check(self, query_embedding: np.ndarray) -> dict[str, Any]:
-        desc = self.client.describe_index(COLLECTION, index_name="vector")
+        desc = self.client.describe_index(self.collection_name, index_name="vector")
         index_type = str(desc.get("index_type", "?"))
         uses_index = index_type.upper() == "HNSW"
         if not uses_index:

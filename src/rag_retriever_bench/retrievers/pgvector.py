@@ -7,8 +7,6 @@ import numpy as np
 
 from .base import BaseRetriever
 
-TABLE = "rrb_docs"
-
 
 class PgvectorRetriever(BaseRetriever):
     type_name = "pgvector"
@@ -18,6 +16,7 @@ class PgvectorRetriever(BaseRetriever):
         import psycopg
 
         self.dsn = options.get("dsn", "postgresql://bench:bench@localhost:5432/bench")
+        self.table = options.get("table", "rrb_docs")
         hnsw = options.get("hnsw", {})
         self.m = int(hnsw.get("m", 16))
         self.ef_construction = int(hnsw.get("ef_construction", 64))
@@ -27,15 +26,15 @@ class PgvectorRetriever(BaseRetriever):
     def setup(self, dim: int) -> None:
         with self.conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            cur.execute(f"DROP TABLE IF EXISTS {TABLE}")
+            cur.execute(f"DROP TABLE IF EXISTS {self.table}")
             cur.execute(
-                f"CREATE TABLE {TABLE} (docid text PRIMARY KEY, body text, embedding vector({dim}))"
+                f"CREATE TABLE {self.table} (docid text PRIMARY KEY, body text, embedding vector({dim}))"
             )
 
     def load(self, docids: list[str], texts: list[str], embeddings: np.ndarray) -> float:
         t0 = time.perf_counter()
         with self.conn.cursor() as cur:
-            with cur.copy(f"COPY {TABLE} (docid, body, embedding) FROM STDIN") as copy:
+            with cur.copy(f"COPY {self.table} (docid, body, embedding) FROM STDIN") as copy:
                 for docid, text, vec in zip(docids, texts, embeddings, strict=True):
                     copy.write_row((docid, text, _vec_literal(vec)))
         return time.perf_counter() - t0
@@ -46,17 +45,17 @@ class PgvectorRetriever(BaseRetriever):
             cur.execute("SET maintenance_work_mem = '2GB'")
             cur.execute("SET max_parallel_maintenance_workers = 4")
             cur.execute(
-                f"CREATE INDEX ON {TABLE} USING hnsw (embedding vector_cosine_ops) "
+                f"CREATE INDEX ON {self.table} USING hnsw (embedding vector_cosine_ops) "
                 f"WITH (m = {self.m}, ef_construction = {self.ef_construction})"
             )
-            cur.execute(f"ANALYZE {TABLE}")
+            cur.execute(f"ANALYZE {self.table}")
         return time.perf_counter() - t0
 
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[str]:
         with self.conn.cursor() as cur:
             cur.execute(f"SET hnsw.ef_search = {self.ef_search}")
             cur.execute(
-                f"SELECT docid FROM {TABLE} ORDER BY embedding <=> %s::vector LIMIT %s",
+                f"SELECT docid FROM {self.table} ORDER BY embedding <=> %s::vector LIMIT %s",
                 (_vec_literal(query_embedding), top_k),
             )
             return [row[0] for row in cur.fetchall()]
@@ -65,13 +64,13 @@ class PgvectorRetriever(BaseRetriever):
         with self.conn.cursor() as cur:
             cur.execute(f"SET hnsw.ef_search = {self.ef_search}")
             cur.execute(
-                f"EXPLAIN SELECT docid FROM {TABLE} ORDER BY embedding <=> %s::vector LIMIT 10",
+                f"EXPLAIN SELECT docid FROM {self.table} ORDER BY embedding <=> %s::vector LIMIT 10",
                 (_vec_literal(query_embedding),),
             )
             plan = [row[0] for row in cur.fetchall()]
         # The HNSW index is auto-named (e.g. rrb_docs_embedding_idx); an index
         # scan on this table can only be that index, so match the scan itself.
-        uses_index = any("Index Scan using" in line and TABLE in line for line in plan)
+        uses_index = any("Index Scan using" in line and self.table in line for line in plan)
         if not uses_index:
             print(f"WARNING [{self.label}]: HNSW index NOT used in query plan")
         return {"ann_index_used": uses_index, "plan_excerpt": [line.strip()[:160] for line in plan[:2]]}

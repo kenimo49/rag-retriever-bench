@@ -18,8 +18,26 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,chroma]"
       - name: Lint
         run: ruff check src tests
       - name: Test
         run: pytest
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Start backends
+        run: docker compose up -d --wait
+      - name: Install
+        run: pip install -e ".[dev,all]"
+      - name: Integration tests
+        run: pytest -m integration
+      - name: Backend logs on failure
+        if: failure()
+        run: docker compose logs --tail 100

@@ -8,8 +8,6 @@ import numpy as np
 
 from .base import BaseRetriever
 
-COLLECTION = "rrb_docs"
-
 
 class ChromaRetriever(BaseRetriever):
     """Chroma backend, embedded (in-process) mode — its most common deployment.
@@ -32,15 +30,16 @@ class ChromaRetriever(BaseRetriever):
         self.path = Path(options.get("path", "data/embedded/chroma"))
         self.path.mkdir(parents=True, exist_ok=True)
         self.client = chromadb.PersistentClient(path=str(self.path))
+        self.collection_name = options.get("collection", "rrb_docs")
         self.collection = None
 
     def setup(self, dim: int) -> None:
         try:
-            self.client.delete_collection(COLLECTION)
+            self.client.delete_collection(self.collection_name)
         except Exception:
             pass
         self.collection = self.client.create_collection(
-            COLLECTION,
+            self.collection_name,
             metadata={
                 "hnsw:space": "cosine",
                 "hnsw:M": self.m,
@@ -68,7 +67,7 @@ class ChromaRetriever(BaseRetriever):
         # Search-only reconnect: lets a downstream app (e.g. rag-db-advisor)
         # open a previously ingested store without re-running setup()/load().
         if self.collection is None:
-            self.collection = self.client.get_collection(COLLECTION)
+            self.collection = self.client.get_collection(self.collection_name)
         return self.collection
 
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[str]:
