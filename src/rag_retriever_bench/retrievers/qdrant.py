@@ -70,12 +70,23 @@ class QdrantRetriever(BaseRetriever):
         return time.perf_counter() - t0
 
     def build_index(self) -> float:
-        # Wait until the async optimizer finishes building HNSW segments.
+        from qdrant_client import models
+
+        # Segments below indexing_threshold (default 20MB) are never HNSW-
+        # indexed and get scanned instead — the first smoke run served all 860
+        # queries unindexed with a green status. Drop the threshold to force
+        # index construction, then wait for every vector to be covered.
         t0 = time.perf_counter()
+        self.client.update_collection(
+            COLLECTION,
+            optimizer_config=models.OptimizersConfigDiff(indexing_threshold=1),
+        )
         deadline = t0 + 1800
         while time.perf_counter() < deadline:
             info = self.client.get_collection(COLLECTION)
-            if str(info.status) in ("CollectionStatus.GREEN", "green"):
+            indexed = int(info.indexed_vectors_count or 0)
+            total = int(info.points_count or 0)
+            if indexed >= total and str(info.status) in ("CollectionStatus.GREEN", "green"):
                 break
             time.sleep(0.5)
         return time.perf_counter() - t0
