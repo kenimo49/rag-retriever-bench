@@ -20,9 +20,19 @@ def run(cfg: Config) -> list[dict[str, Any]]:
 
     results = []
     for backend_options in cfg.backends:
-        results.append(
-            _run_backend(cfg, backend_options, docids, texts, doc_vecs, queries, query_vecs)
-        )
+        label = backend_options.get("label", backend_options.get("type", "?"))
+        try:
+            results.append(
+                _run_backend(cfg, backend_options, docids, texts, doc_vecs, queries, query_vecs)
+            )
+        except Exception as exc:  # one broken backend must not kill the run
+            print(f"\nERROR [{label}]: {type(exc).__name__}: {exc}")
+            results.append(
+                {
+                    "backend": {"type": backend_options.get("type", "?"), "label": label},
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            )
     return results
 
 

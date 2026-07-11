@@ -1,0 +1,73 @@
+# Canonical all-backends config (Phase 1 + Phase 2). Requires docker compose up
+# for pgvector/clickhouse/qdrant/weaviate/milvus; chroma/lancedb are embedded.
+dataset:
+  name: miracl-ja
+  corpus_size: 100000
+  split: dev
+  seed: 42
+
+embeddings:
+  provider: openai
+  model: text-embedding-3-small
+  dim: 1536
+  batch_size: 128
+  workers: 8
+
+bench:
+  top_k: 10
+  warmup_queries: 20
+
+backends:
+  - type: pgvector
+    label: pgvector (HNSW)
+    dsn: postgresql://bench:bench@localhost:5432/bench
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: clickhouse
+    label: ClickHouse (HNSW)
+    host: localhost
+    port: 8123
+    index: hnsw
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: clickhouse
+    label: ClickHouse (HNSW, g=128)
+    host: localhost
+    port: 8123
+    index: hnsw
+    index_granularity: 128
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: clickhouse
+    label: ClickHouse (brute force)
+    host: localhost
+    port: 8123
+    index: none
+  - type: qdrant
+    label: Qdrant (HNSW)
+    host: localhost
+    port: 6333
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: weaviate
+    label: Weaviate (HNSW)
+    host: localhost
+    port: 8080
+    grpc_port: 50051
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: milvus
+    label: Milvus (HNSW)
+    uri: http://localhost:19530
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: chroma
+    label: Chroma (HNSW, embedded)
+    path: data/embedded/chroma
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: lancedb
+    label: LanceDB (IVF_HNSW_SQ, embedded)
+    path: data/embedded/lancedb
+    num_partitions: 1
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }

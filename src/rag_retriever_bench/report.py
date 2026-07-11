@@ -31,7 +31,7 @@ def render_markdown(cfg: Config, results: list[dict[str, Any]]) -> str:
         f"# rag-retriever-bench — {cfg.dataset.name} ({cfg.dataset.corpus_size:,} passages)",
         "",
         f"- embeddings: {cfg.embeddings.model} (dim={cfg.embeddings.dim})",
-        f"- queries: {results[0]['num_queries'] if results else 0}, top_k={k}",
+        f"- queries: {next((r['num_queries'] for r in results if 'error' not in r), 0)}, top_k={k}",
         f"- generated: {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
         "",
         "| backend | recall@{k} | ndcg@{k} | mrr@{k} | p50 (ms) | p95 (ms) | load (s) | index (s) |".replace(
@@ -39,7 +39,10 @@ def render_markdown(cfg: Config, results: list[dict[str, Any]]) -> str:
         ),
         "|---|---|---|---|---|---|---|---|",
     ]
+    failed = [r for r in results if "error" in r]
     for r in results:
+        if "error" in r:
+            continue
         q, lat, b = r["quality"], r["latency_ms"], r["build"]
         lines.append(
             f"| {r['backend']['label']} "
@@ -47,8 +50,14 @@ def render_markdown(cfg: Config, results: list[dict[str, Any]]) -> str:
             f"| {lat['p50']:.1f} | {lat['p95']:.1f} "
             f"| {b['load_seconds']:.1f} | {b['index_seconds']:.1f} |"
         )
+    if failed:
+        lines += ["", "## Failed backends", ""]
+        for r in failed:
+            lines.append(f"- **{r['backend']['label']}**: {r['error']}")
     lines += ["", "## Backend details", ""]
     for r in results:
+        if "error" in r:
+            continue
         lines.append(f"- **{r['backend']['label']}**: " + ", ".join(
             f"{key}={value}" for key, value in r["backend"].items() if key != "label"
         ))

@@ -7,6 +7,11 @@ from .base import BaseRetriever
 _REGISTRY: dict[str, str] = {
     "pgvector": "rag_retriever_bench.retrievers.pgvector:PgvectorRetriever",
     "clickhouse": "rag_retriever_bench.retrievers.clickhouse:ClickHouseRetriever",
+    "qdrant": "rag_retriever_bench.retrievers.qdrant:QdrantRetriever",
+    "weaviate": "rag_retriever_bench.retrievers.weaviate:WeaviateRetriever",
+    "milvus": "rag_retriever_bench.retrievers.milvus:MilvusRetriever",
+    "chroma": "rag_retriever_bench.retrievers.chroma:ChromaRetriever",
+    "lancedb": "rag_retriever_bench.retrievers.lancedb:LanceDBRetriever",
 }
 
 

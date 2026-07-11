@@ -1,0 +1,48 @@
+# Phase 2 smoke config: the 5 competitor backends only (existing 4 are in
+# miracl-ja.yaml). Use --corpus-size 10000 for smoke; embeddings are cached.
+dataset:
+  name: miracl-ja
+  corpus_size: 10000
+  split: dev
+  seed: 42
+
+embeddings:
+  provider: openai
+  model: text-embedding-3-small
+  dim: 1536
+  batch_size: 128
+  workers: 8
+
+bench:
+  top_k: 10
+  warmup_queries: 20
+
+backends:
+  - type: qdrant
+    label: Qdrant (HNSW)
+    host: localhost
+    port: 6333
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: weaviate
+    label: Weaviate (HNSW)
+    host: localhost
+    port: 8080
+    grpc_port: 50051
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: milvus
+    label: Milvus (HNSW)
+    uri: http://localhost:19530
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: chroma
+    label: Chroma (HNSW, embedded)
+    path: data/embedded/chroma
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
+
+  - type: lancedb
+    label: LanceDB (IVF_HNSW_SQ, embedded)
+    path: data/embedded/lancedb
+    num_partitions: 1
+    hnsw: { m: 16, ef_construction: 64, ef_search: 100 }
