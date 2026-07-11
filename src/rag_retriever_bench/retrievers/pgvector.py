@@ -69,10 +69,12 @@ class PgvectorRetriever(BaseRetriever):
                 (_vec_literal(query_embedding),),
             )
             plan = [row[0] for row in cur.fetchall()]
-        uses_index = any("Index Scan" in line and "hnsw" in line.lower() for line in plan)
+        # The HNSW index is auto-named (e.g. rrb_docs_embedding_idx); an index
+        # scan on this table can only be that index, so match the scan itself.
+        uses_index = any("Index Scan using" in line and TABLE in line for line in plan)
         if not uses_index:
             print(f"WARNING [{self.label}]: HNSW index NOT used in query plan")
-        return {"ann_index_used": uses_index, "plan_excerpt": plan[:3]}
+        return {"ann_index_used": uses_index, "plan_excerpt": [l.strip()[:160] for l in plan[:2]]}
 
     def describe(self) -> dict[str, Any]:
         with self.conn.cursor() as cur:
