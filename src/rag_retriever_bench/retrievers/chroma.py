@@ -64,8 +64,15 @@ class ChromaRetriever(BaseRetriever):
         # HNSW is built incrementally during add(); nothing to finalize.
         return 0.0
 
+    def _ensure_collection(self):
+        # Search-only reconnect: lets a downstream app (e.g. rag-db-advisor)
+        # open a previously ingested store without re-running setup()/load().
+        if self.collection is None:
+            self.collection = self.client.get_collection(COLLECTION)
+        return self.collection
+
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[str]:
-        res = self.collection.query(
+        res = self._ensure_collection().query(
             query_embeddings=[query_embedding.tolist()],
             n_results=top_k,
             include=[],
@@ -75,12 +82,12 @@ class ChromaRetriever(BaseRetriever):
     def self_check(self, query_embedding: np.ndarray) -> dict[str, Any]:
         # Chroma exposes no query plan; report the collection's configured
         # params and count so a misconfigured space/M is at least visible.
-        meta = dict(self.collection.metadata or {})
+        meta = dict(self._ensure_collection().metadata or {})
         return {
             "ann_index_used": True,  # HNSW is Chroma's only vector index
             "method": "config-only (no plan introspection in Chroma)",
             "configured": {key: meta[key] for key in sorted(meta) if key.startswith("hnsw:")},
-            "count": self.collection.count(),
+            "count": self._ensure_collection().count(),
         }
 
     def describe(self) -> dict[str, Any]:
