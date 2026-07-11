@@ -1,0 +1,74 @@
+name: New backend request
+description: Propose a vector database or retrieval engine to add to the benchmark.
+title: "backend: <name>"
+labels: ["backend-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a backend! Before filing, please check the
+        Backends table in the README — a few candidates already live behind
+        variant configs (e.g. ClickHouse brute-force / HNSW / index_granularity
+        variants).
+
+        If you're planning to implement it yourself,
+        [docs/adding-a-backend.md](https://github.com/kenimo49/rag-retriever-bench/blob/main/docs/adding-a-backend.md)
+        is the walkthrough.
+  - type: input
+    id: name
+    attributes:
+      label: Backend name
+      placeholder: e.g. Vespa, Turbopuffer, Elasticsearch (dense_vector), Milvus Lite
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Server / library version to target
+      placeholder: e.g. Vespa 8.x, elasticsearch-py 8.15
+    validations:
+      required: false
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Deployment mode
+      options:
+        - server (network hop, comparable to pgvector/Qdrant/etc.)
+        - embedded (in-process, comparable to Chroma/LanceDB)
+        - both
+    validations:
+      required: true
+  - type: dropdown
+    id: index
+    attributes:
+      label: Primary ANN index type
+      options:
+        - HNSW
+        - IVF (flat / PQ / SQ)
+        - DiskANN / Vamana
+        - ScaNN
+        - full scan only
+        - other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why bench it
+      description: What claim about this backend would this benchmark help resolve? (e.g. "vendor says p95 < 5ms at 1M vectors — is that true with aligned HNSW params?")
+    validations:
+      required: true
+  - type: textarea
+    id: self_check
+    attributes:
+      label: How would `self_check` verify the ANN index is actually used?
+      description: EXPLAIN? Server stats endpoint? Config only? (Config-only is accepted but weaker — see docs/adding-a-backend.md.)
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / gotchas
+      description: Anything you already know that would trip up a naive implementation — auth quirks, index-build blocking, batch-size limits, distance metric surprises.
+    validations:
+      required: false
