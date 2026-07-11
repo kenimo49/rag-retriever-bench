@@ -51,6 +51,10 @@ def _run_backend(
         for vec in query_vecs[: cfg.bench.warmup_queries]:
             retriever.search(vec, k)
 
+        self_check = retriever.self_check(query_vecs[0])
+        if self_check:
+            print(f"self_check: {self_check}")
+
         latencies_ms: list[float] = []
         per_query: list[dict[str, float]] = []
         for query, vec in zip(tqdm(queries, desc=f"search {label}"), query_vecs):
@@ -87,6 +91,7 @@ def _run_backend(
                 "mean": sum(latencies_ms) / n,
             },
             "build": {"load_seconds": load_s, "index_seconds": index_s},
+            "self_check": self_check,
         }
     finally:
         retriever.close()

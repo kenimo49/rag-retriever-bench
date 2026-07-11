@@ -46,5 +46,13 @@ class BaseRetriever(ABC):
         """Backend + index parameters for the report."""
         return {"type": self.type_name, "label": self.label}
 
+    def self_check(self, query_embedding: np.ndarray) -> dict[str, Any]:
+        """Verify the query plan (e.g. that the ANN index is actually used).
+
+        Runs once after warmup; the result lands in the report so a
+        misconfigured backend can't silently masquerade as a slow one.
+        """
+        return {}
+
     def close(self) -> None:
         pass

@@ -61,6 +61,19 @@ class PgvectorRetriever(BaseRetriever):
             )
             return [row[0] for row in cur.fetchall()]
 
+    def self_check(self, query_embedding: np.ndarray) -> dict[str, Any]:
+        with self.conn.cursor() as cur:
+            cur.execute(f"SET hnsw.ef_search = {self.ef_search}")
+            cur.execute(
+                f"EXPLAIN SELECT docid FROM {TABLE} ORDER BY embedding <=> %s::vector LIMIT 10",
+                (_vec_literal(query_embedding),),
+            )
+            plan = [row[0] for row in cur.fetchall()]
+        uses_index = any("Index Scan" in line and "hnsw" in line.lower() for line in plan)
+        if not uses_index:
+            print(f"WARNING [{self.label}]: HNSW index NOT used in query plan")
+        return {"ann_index_used": uses_index, "plan_excerpt": plan[:3]}
+
     def describe(self) -> dict[str, Any]:
         with self.conn.cursor() as cur:
             cur.execute("SELECT version()")
