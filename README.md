@@ -85,6 +85,8 @@ Default config uses [MIRACL](https://huggingface.co/datasets/miracl/miracl) (ja)
 - recall@k is the standard uncapped definition (hits / |positives|); duplicate docids returned by a backend are deduplicated before scoring.
 - `corpus_size` is a CLI flag so you can sweep scale (10k → 100k → …) and find where the trade-offs actually flip, on your own hardware.
 
+Full write-up: [docs/methodology.md](docs/methodology.md).
+
 ## Testing
 
 ```bash
