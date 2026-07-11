@@ -8,7 +8,9 @@ services:
       POSTGRES_DB: bench
     ports:
       - "5432:5432"
-    shm_size: 1g
+    # Parallel HNSW build allocates a DSM segment of ~maintenance_work_mem
+    # (2GB) + overhead; 1g fails at 100k docs with psycopg DiskFull.
+    shm_size: 4g
     volumes:
       - pgvector-data:/var/lib/postgresql/data
     healthcheck:
