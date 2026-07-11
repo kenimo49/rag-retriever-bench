@@ -82,7 +82,20 @@ class MilvusRetriever(BaseRetriever):
             except Exception:
                 break
             time.sleep(0.5)
-        self.client.load_collection(COLLECTION)
+        # The collection is auto-loaded at creation, so a plain load_collection
+        # here is a no-op on the pre-flush snapshot and searches silently miss
+        # the newly sealed segments (measured recall@10 0.922 vs 0.979 on the
+        # same index). refresh_load pulls them in; then wait for Loaded state.
+        try:
+            self.client.refresh_load(COLLECTION)
+        except Exception:
+            self.client.release_collection(COLLECTION)
+            self.client.load_collection(COLLECTION)
+        while time.perf_counter() < deadline:
+            state = str(self.client.get_load_state(COLLECTION).get("state", ""))
+            if "Loaded" in state:
+                break
+            time.sleep(0.5)
         return time.perf_counter() - t0
 
     def search(self, query_embedding: np.ndarray, top_k: int) -> list[str]:
