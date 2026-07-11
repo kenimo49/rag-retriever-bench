@@ -1,5 +1,7 @@
 # rag-retriever-bench
 
+![Benchmark cockpit dashboards for seven vector database backends, centered on the phrase "same corpus, same queries, swap the database"](docs/hero.jpg)
+
 Benchmark harness for RAG retrieval backends: **same corpus, same queries, same metrics — swap the database.**
 
 Most RAG evaluation tools score the *answers* (ragas, DeepEval) or the *embedding models* (MTEB, JMTEB). This one scores the layer in between: the **retrieval backend**. It answers questions like *"at my corpus size and query pattern, is pgvector enough, or do I need something else?"* — with measured numbers instead of vendor benchmarks.
